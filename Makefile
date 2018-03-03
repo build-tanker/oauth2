@@ -57,6 +57,7 @@ coverage:
 	@echo "$(GREEN_COLOR)Calculating test coverage across packages $(END_COLOR)"
 	go test -covermode=atomic -v -race -timeout=10s -coverprofile=coverage.txt
 	go tool cover -html=coverage.txt -o coverage.html
+	@rm coverage.txt
 	@echo "$(YELLOW_COLOR)Run open ./coverage.html to view coverage $(END_COLOR)"
 
 ### Build the latest source
