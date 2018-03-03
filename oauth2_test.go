@@ -15,6 +15,10 @@ var state string
 
 func (m MockArcher) Get(url string) ([]byte, error) {
 	switch state {
+	case "fakeProfileDetails":
+		return []byte(`{"kind": "plus#person", "etag": "", "gender": "male", "emails": [{"value": "boogabooga@gmail.com", "type": "account"}], "urls": [{"value": "http://sudhanshuraheja.com", "type": "otherProfile", "label": "Gyaan Sutra"}, {"value": "http://vxtindia.com", "type": "other", "label": "Vercingetorix Technologies"} ], "objectType": "person", "id": "102967380278879533510", "displayName": "Sudhanshu Raheja", "name": {"familyName": "Raheja", "givenName": "Sudhanshu"}, "aboutMe": "Founder of Vercingetorix Technologies Pvt Ltd", "url": "https://plus.google.com/102967380278879533510", "image": {"url": "https://lh5.googleusercontent.com/-RjZVXVkQ_Z4/AAAAAAAAAAI/AAAAAAAABDY/-osXKni-BSY/photo.jpg?sz=50", "isDefault": false }, "organizations": [{"name": "Army Institute of Technology", "title": "Electronics & Telecommunications", "type": "school", "startDate": "2000", "endDate": "2004", "primary": false }, {"name": "Vercingetorix Technologies Pvt Ltd", "type": "work", "startDate": "2007", "primary": true } ], "placesLived": [{"value": "Pune, India", "primary": true }, {"value": "Delhi, India"}, {"value": "Sydney, Australia"} ], "isPlusUser": true, "language": "en_GB", "verified": false }`), nil
+	case "fakeRevokeToken":
+		return []byte(`{ "success": "true" }`), nil
 	case "fakeTokenActualResponse":
 		return []byte(`{ "aud": "fakeClientID", "scope": "", "userid": "fakeUserId" }`), nil
 	case "fakeGetAndVerifyToken":
@@ -25,6 +29,8 @@ func (m MockArcher) Get(url string) ([]byte, error) {
 }
 func (m MockArcher) Post(url string, body io.Reader) ([]byte, error) {
 	switch state {
+	case "fakeRefreshToken":
+		return []byte(`{ "access_token":"fakeRefreshedAccessToken", "expires_in":3920, "token_type":"Bearer" }`), nil
 	case "fakeGetAndVerifyToken":
 		return []byte(`{ "access_token":"fakeAccessToken", "token_type": "fakeTokenType", "expiresIn": "fakeExpiresIn", "refresh_token": "fakeRefreshToken", "id_token": "fakeIdToken" }`), nil
 	default:
@@ -118,6 +124,43 @@ func TestVerifyToken(t *testing.T) {
 	userid, err := oa.VerifyToken("fakeToken")
 	assert.Nil(t, err)
 	assert.Equal(t, "fakeUserId", userid)
+}
+
+func TestRefreshToken(t *testing.T) {
+	oa, err := newOAuth2("fakeClientID", "fakeClientSecret", "fakeRedirectURL")
+	assert.Nil(t, err)
+
+	state = "fakeRefreshToken"
+
+	accessToken, err := oa.RefreshToken("fakeRefreshToken")
+	assert.Nil(t, err)
+	assert.Equal(t, "fakeRefreshedAccessToken", accessToken)
+}
+
+func TestRevokeToken(t *testing.T) {
+	oa, err := newOAuth2("fakeClientID", "fakeClientSecret", "fakeRedirectURL")
+	assert.Nil(t, err)
+
+	state = "fakeRevokeToken"
+
+	err = oa.RevokeToken("fakeAccessToken")
+	assert.Nil(t, err)
+}
+
+func TestProfileDetails(t *testing.T) {
+	oa, err := newOAuth2("fakeClientID", "fakeClientSecret", "fakeRedirectURL")
+	assert.Nil(t, err)
+
+	state = "fakeProfileDetails"
+
+	email, name, image, id, gender, err := oa.GetProfileDetails("fakeAccessToken")
+	assert.Nil(t, err)
+	assert.Equal(t, "boogabooga@gmail.com", email)
+	assert.Equal(t, "Sudhanshu Raheja", name)
+	assert.Equal(t, "https://lh5.googleusercontent.com/-RjZVXVkQ_Z4/AAAAAAAAAAI/AAAAAAAABDY/-osXKni-BSY/photo.jpg?sz=50", image)
+	assert.Equal(t, "102967380278879533510", id)
+	assert.Equal(t, "male", gender)
+
 }
 
 func TestGetAndVerifyToken(t *testing.T) {

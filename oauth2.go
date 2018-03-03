@@ -26,9 +26,12 @@ const (
 	promptConsent       = "consent"
 	promptSelectAccount = "select_account"
 
-	authTokenURL   = "https://accounts.google.com/o/oauth2/v2/auth?scope=%s&access_type=%s&include_granted_scopes=%s&state=%s&redirect_uri=%s&response_type=code&login_hint=%s&prompt=%s&client_id=%s"
-	getTokenURL    = "https://www.googleapis.com/oauth2/v4/token"
-	verifyTokenURL = "https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=%s"
+	authTokenURL      = "https://accounts.google.com/o/oauth2/v2/auth?scope=%s&access_type=%s&include_granted_scopes=%s&state=%s&redirect_uri=%s&response_type=code&login_hint=%s&prompt=%s&client_id=%s"
+	getTokenURL       = "https://www.googleapis.com/oauth2/v4/token"
+	verifyTokenURL    = "https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=%s"
+	refreshTokenURL   = "https://www.googleapis.com/oauth2/v4/token"
+	revokeTokenURL    = "https://accounts.google.com/o/oauth2/revoke?token=%s"
+	profileDetailsURL = "https://www.googleapis.com/plus/v1/people/me?access_token=%s"
 )
 
 // OAuth2 interface to deal with OAuth2
@@ -36,6 +39,9 @@ type OAuth2 interface {
 	GetAuthURL(scope, accessType, state, includeGrantedScopes, loginHint, prompt string) (string, error)
 	GetToken(code string) ([]byte, error)
 	VerifyToken(accessToken string) (string, error)
+	RefreshToken(refreshToken string) (string, error)
+	RevokeToken(accessToken string) error
+	GetProfileDetails(accessToken string) (email, name, image, id, gender string, err error)
 	GetAndVerifyToken(code string) (bool, string, string, string, string, string, string, error)
 }
 
@@ -134,6 +140,51 @@ func (o oAuth2) VerifyToken(accessToken string) (string, error) {
 	}
 
 	return userID.String(), nil
+}
+
+func (o oAuth2) RefreshToken(refreshToken string) (string, error) {
+	v := url.Values{}
+	v.Set("refresh_token", refreshToken)
+	v.Set("client_id", o.clientID)
+	v.Set("client_secret", o.clientSecret)
+	v.Set("grant_type", "refresh_token")
+	s := v.Encode()
+
+	body, err := o.a.Post(refreshTokenURL, strings.NewReader(s))
+	if err != nil {
+		return "", err
+	}
+
+	accessToken := gjson.GetBytes(body, "access_token")
+
+	return accessToken.String(), nil
+}
+
+func (o oAuth2) RevokeToken(accessToken string) error {
+	revokeURL := fmt.Sprintf(revokeTokenURL, accessToken)
+	_, err := o.a.Get(revokeURL)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (o oAuth2) GetProfileDetails(accessToken string) (string, string, string, string, string, error) {
+	profileURL := fmt.Sprintf(profileDetailsURL, accessToken)
+	bytes, err := o.a.Get(profileURL)
+	if err != nil {
+		return "", "", "", "", "", err
+	}
+
+	email := gjson.GetBytes(bytes, "emails.0.value")
+	name := gjson.GetBytes(bytes, "displayName")
+	image := gjson.GetBytes(bytes, "image.url")
+	ID := gjson.GetBytes(bytes, "id")
+	gender := gjson.GetBytes(bytes, "gender")
+
+	return email.String(), name.String(), image.String(), ID.String(), gender.String(), nil
+
 }
 
 func (o oAuth2) GetAndVerifyToken(code string) (bool, string, string, string, string, string, string, error) {
