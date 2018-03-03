@@ -94,7 +94,7 @@ func (o oAuth2) GetToken(code string) ([]byte, error) {
 	v.Set("code", code)
 	v.Set("client_id", o.clientID)
 	v.Set("client_secret", o.clientSecret)
-	v.Set("redirect_url", o.redirectURL)
+	v.Set("redirect_uri", o.redirectURL)
 	v.Set("grant_type", "authorization_code")
 	s := v.Encode()
 
