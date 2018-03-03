@@ -36,6 +36,7 @@ type OAuth2 interface {
 	GetAuthURL(scope, accessType, state, includeGrantedScopes, loginHint, prompt string) (string, error)
 	GetToken(code string) ([]byte, error)
 	VerifyToken(accessToken string) (string, error)
+	GetAndVerifyToken(code string) (bool, string, string, string, string, string, string, error)
 }
 
 type oAuth2 struct {
@@ -133,4 +134,24 @@ func (o oAuth2) VerifyToken(accessToken string) (string, error) {
 	}
 
 	return userID.String(), nil
+}
+
+func (o oAuth2) GetAndVerifyToken(code string) (bool, string, string, string, string, string, string, error) {
+	bytes, err := o.GetToken(code)
+	if err != nil {
+		return false, "", "", "", "", "", "", err
+	}
+
+	accessToken := gjson.GetBytes(bytes, "access_token")
+	tokenType := gjson.GetBytes(bytes, "token_type")
+	expiresIn := gjson.GetBytes(bytes, "expires_in")
+	refreshToken := gjson.GetBytes(bytes, "refresh_token")
+	idToken := gjson.GetBytes(bytes, "id_token")
+
+	userID, err := o.VerifyToken(accessToken.String())
+	if err != nil {
+		return false, "", "", "", "", "", "", err
+	}
+
+	return true, accessToken.String(), tokenType.String(), expiresIn.String(), refreshToken.String(), idToken.String(), userID, err
 }

@@ -17,17 +17,24 @@ func (m MockArcher) Get(url string) ([]byte, error) {
 	switch state {
 	case "fakeTokenActualResponse":
 		return []byte(`{ "aud": "fakeClientID", "scope": "", "userid": "fakeUserId" }`), nil
+	case "fakeGetAndVerifyToken":
+		return []byte(`{ "aud": "fakeClientID", "scope":"", "userid":"fakeUserId" }`), nil
 	default:
 		return []byte{}, nil
 	}
 }
 func (m MockArcher) Post(url string, body io.Reader) ([]byte, error) {
-	bytes, err := ioutil.ReadAll(body)
-	if err != nil {
-		return nil, err
+	switch state {
+	case "fakeGetAndVerifyToken":
+		return []byte(`{ "access_token":"fakeAccessToken", "token_type": "fakeTokenType", "expiresIn": "fakeExpiresIn", "refresh_token": "fakeRefreshToken", "id_token": "fakeIdToken" }`), nil
+	default:
+		bytes, err := ioutil.ReadAll(body)
+		if err != nil {
+			return nil, err
+		}
+		output := fmt.Sprintf("%s %s", url, string(bytes))
+		return []byte(output), nil
 	}
-	output := fmt.Sprintf("%s %s", url, string(bytes))
-	return []byte(output), nil
 }
 func (m MockArcher) Put(url string) ([]byte, error) {
 	return []byte{}, nil
@@ -111,5 +118,21 @@ func TestVerifyToken(t *testing.T) {
 	userid, err := oa.VerifyToken("fakeToken")
 	assert.Nil(t, err)
 	assert.Equal(t, "fakeUserId", userid)
+}
 
+func TestGetAndVerifyToken(t *testing.T) {
+	oa, err := newOAuth2("fakeClientID", "fakeClientSecret", "fakeRedirectURL")
+	assert.Nil(t, err)
+
+	state = "fakeGetAndVerifyToken"
+
+	verified, accessToken, tokenType, expiresIn, refreshToken, idToken, userID, err := oa.GetAndVerifyToken("fakeCode")
+	assert.Nil(t, err)
+	assert.Equal(t, true, verified)
+	assert.Equal(t, "fakeAccessToken", accessToken)
+	assert.Equal(t, "fakeTokenType", tokenType)
+	assert.Equal(t, "", expiresIn)
+	assert.Equal(t, "fakeRefreshToken", refreshToken)
+	assert.Equal(t, "fakeIdToken", idToken)
+	assert.Equal(t, "fakeUserId", userID)
 }
