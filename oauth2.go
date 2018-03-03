@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/build-tanker/archer"
+	"github.com/tidwall/gjson"
 )
 
 // More details here - https://developers.google.com/identity/protocols/OAuth2WebServer#protectauthcode
@@ -34,6 +35,7 @@ const (
 type OAuth2 interface {
 	GetAuthURL(scope, accessType, state, includeGrantedScopes, loginHint, prompt string) (string, error)
 	GetToken(code string) ([]byte, error)
+	VerifyToken(accessToken string) (string, error)
 }
 
 type oAuth2 struct {
@@ -41,6 +43,7 @@ type oAuth2 struct {
 	clientID     string
 	clientSecret string
 	redirectURL  string
+	scope        string
 }
 
 // NewOAuth2 - get a new client for OAuth2
@@ -72,6 +75,7 @@ func (o oAuth2) GetAuthURL(scope, accessType, state, includeGrantedScopes, login
 	if scope == "" {
 		scope = fmt.Sprintf("%s %s %s %s", scopeEmail, scopeProfile, scopeUserInfoEmail, scopeUserInfoProfile)
 	}
+	o.scope = scope
 
 	if includeGrantedScopes != "true" {
 		includeGrantedScopes = "true"
@@ -89,7 +93,6 @@ func (o oAuth2) GetAuthURL(scope, accessType, state, includeGrantedScopes, login
 }
 
 func (o oAuth2) GetToken(code string) ([]byte, error) {
-
 	v := url.Values{}
 	v.Set("code", code)
 	v.Set("client_id", o.clientID)
@@ -104,4 +107,30 @@ func (o oAuth2) GetToken(code string) ([]byte, error) {
 	}
 
 	return body, nil
+}
+
+func (o oAuth2) VerifyToken(accessToken string) (string, error) {
+	tokenURL := fmt.Sprintf(verifyTokenURL, accessToken)
+	body, err := o.a.Get(tokenURL)
+	if err != nil {
+		return "", err
+	}
+
+	if len(body) == 0 {
+		return "", errors.New("Could not find details for that access token")
+	}
+
+	aud := gjson.GetBytes(body, "aud")
+	scope := gjson.GetBytes(body, "scope")
+	userID := gjson.GetBytes(body, "userid")
+
+	if aud.String() != o.clientID {
+		return "", errors.New("Aud and clientID do not match")
+	}
+
+	if scope.String() != o.scope {
+		return "", errors.New("Scope does not match original scope")
+	}
+
+	return userID.String(), nil
 }

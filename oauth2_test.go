@@ -11,8 +11,15 @@ import (
 
 type MockArcher struct{}
 
+var state string
+
 func (m MockArcher) Get(url string) ([]byte, error) {
-	return []byte{}, nil
+	switch state {
+	case "fakeTokenActualResponse":
+		return []byte(`{ "aud": "fakeClientID", "scope": "", "userid": "fakeUserId" }`), nil
+	default:
+		return []byte{}, nil
+	}
 }
 func (m MockArcher) Post(url string, body io.Reader) ([]byte, error) {
 	bytes, err := ioutil.ReadAll(body)
@@ -89,5 +96,20 @@ func TestGetToken(t *testing.T) {
 
 	bytes, err := oa.GetToken("abc")
 	assert.Nil(t, err)
-	assert.Equal(t, "https://www.googleapis.com/oauth2/v4/token client_id=fakeClientID&client_secret=fakeClientSecret&code=abc&grant_type=authorization_code&redirect_url=fakeRedirectURL", string(bytes))
+	assert.Equal(t, "https://www.googleapis.com/oauth2/v4/token client_id=fakeClientID&client_secret=fakeClientSecret&code=abc&grant_type=authorization_code&redirect_uri=fakeRedirectURL", string(bytes))
+}
+
+func TestVerifyToken(t *testing.T) {
+	oa, err := newOAuth2("fakeClientID", "fakeClientSecret", "fakeRedirectURL")
+	assert.Nil(t, err)
+
+	_, err = oa.VerifyToken("fakeToken")
+	assert.Equal(t, "Could not find details for that access token", err.Error())
+
+	state = "fakeTokenActualResponse"
+
+	userid, err := oa.VerifyToken("fakeToken")
+	assert.Nil(t, err)
+	assert.Equal(t, "fakeUserId", userid)
+
 }
