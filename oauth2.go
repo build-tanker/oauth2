@@ -15,8 +15,6 @@ import (
 // And here https://developers.google.com/identity/protocols/OAuth2UserAgent#validate-access-token
 
 const (
-	scopeEmail           = "email"
-	scopeProfile         = "profile"
 	scopeUserInfoEmail   = "https://www.googleapis.com/auth/userinfo.email"
 	scopeUserInfoProfile = "https://www.googleapis.com/auth/userinfo.profile"
 
@@ -80,7 +78,7 @@ func NewOAuth2(clientID, clientSecret, redirectURL string) (OAuth2, error) {
 func (o oAuth2) GetAuthURL(scope, accessType, state, includeGrantedScopes, loginHint, prompt string) (string, error) {
 
 	if scope == "" {
-		scope = fmt.Sprintf("%s %s %s %s", scopeEmail, scopeProfile, scopeUserInfoEmail, scopeUserInfoProfile)
+		scope = fmt.Sprintf("%s %s", scopeUserInfoEmail, scopeUserInfoProfile)
 	}
 	o.scope = scope
 
@@ -136,7 +134,8 @@ func (o oAuth2) VerifyToken(accessToken string) (string, error) {
 	}
 
 	if scope.String() != o.scope {
-		return "", errors.New("Scope does not match original scope")
+		// TODO : Match the scope to original
+		// return "", errors.New("Scope does not match original scope")
 	}
 
 	return userID.String(), nil
