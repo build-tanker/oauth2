@@ -5,7 +5,7 @@
   branch = "master"
   name = "github.com/build-tanker/archer"
   packages = ["."]
-  revision = "5c6413c80a08cc8d1d97d57c519014c2ed379fa2"
+  revision = "88d14d20f10381673437e3da15dbe81fd90f8ff4"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
