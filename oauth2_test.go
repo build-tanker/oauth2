@@ -153,13 +153,13 @@ func TestProfileDetails(t *testing.T) {
 
 	state = "fakeProfileDetails"
 
-	email, name, image, id, gender, err := oa.GetProfileDetails("fakeAccessToken")
+	profileDetails, err := oa.GetProfileDetails("fakeAccessToken")
 	assert.Nil(t, err)
-	assert.Equal(t, "boogabooga@gmail.com", email)
-	assert.Equal(t, "Sudhanshu Raheja", name)
-	assert.Equal(t, "https://lh5.googleusercontent.com/-RjZVXVkQ_Z4/AAAAAAAAAAI/AAAAAAAABDY/-osXKni-BSY/photo.jpg?sz=50", image)
-	assert.Equal(t, "102967380278879533510", id)
-	assert.Equal(t, "male", gender)
+	assert.Equal(t, "boogabooga@gmail.com", profileDetails.Email)
+	assert.Equal(t, "Sudhanshu Raheja", profileDetails.Name)
+	assert.Equal(t, "https://lh5.googleusercontent.com/-RjZVXVkQ_Z4/AAAAAAAAAAI/AAAAAAAABDY/-osXKni-BSY/photo.jpg?sz=50", profileDetails.Image)
+	assert.Equal(t, "102967380278879533510", profileDetails.ID)
+	assert.Equal(t, "male", profileDetails.Gender)
 
 }
 
@@ -169,13 +169,12 @@ func TestGetAndVerifyToken(t *testing.T) {
 
 	state = "fakeGetAndVerifyToken"
 
-	verified, accessToken, tokenType, expiresIn, refreshToken, idToken, userID, err := oa.GetAndVerifyToken("fakeCode")
+	verifyDetails, err := oa.GetAndVerifyToken("fakeCode")
 	assert.Nil(t, err)
-	assert.Equal(t, true, verified)
-	assert.Equal(t, "fakeAccessToken", accessToken)
-	assert.Equal(t, "fakeTokenType", tokenType)
-	assert.Equal(t, "", expiresIn)
-	assert.Equal(t, "fakeRefreshToken", refreshToken)
-	assert.Equal(t, "fakeIdToken", idToken)
-	assert.Equal(t, "fakeUserId", userID)
+	assert.Equal(t, "fakeAccessToken", verifyDetails.AccessToken)
+	assert.Equal(t, "fakeTokenType", verifyDetails.TokenType)
+	assert.Equal(t, int64(0), verifyDetails.ExpiresIn)
+	assert.Equal(t, "fakeRefreshToken", verifyDetails.RefreshToken)
+	assert.Equal(t, "fakeIdToken", verifyDetails.IDToken)
+	assert.Equal(t, "fakeUserId", verifyDetails.UserID)
 }
