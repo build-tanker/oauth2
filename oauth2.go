@@ -39,8 +39,8 @@ type OAuth2 interface {
 	VerifyToken(accessToken string) (string, error)
 	RefreshToken(refreshToken string) (string, error)
 	RevokeToken(accessToken string) error
-	GetProfileDetails(accessToken string) (email, name, image, id, gender string, err error)
-	GetAndVerifyToken(code string) (bool, string, string, string, string, string, string, error)
+	GetProfileDetails(accessToken string) (ProfileDetails, error)
+	GetAndVerifyToken(code string) (VerifyDetails, error)
 }
 
 type oAuth2 struct {
@@ -49,6 +49,25 @@ type oAuth2 struct {
 	clientSecret string
 	redirectURL  string
 	scope        string
+}
+
+// ProfileDetails stores the details fetched from the profile call
+type ProfileDetails struct {
+	Email  string
+	Name   string
+	Image  string
+	ID     string
+	Gender string
+}
+
+// VerifyDetails stores the details for verifing an account
+type VerifyDetails struct {
+	AccessToken  string
+	TokenType    string
+	ExpiresIn    int64
+	RefreshToken string
+	IDToken      string
+	UserID       string
 }
 
 // NewOAuth2 - get a new client for OAuth2
@@ -169,39 +188,46 @@ func (o oAuth2) RevokeToken(accessToken string) error {
 	return nil
 }
 
-func (o oAuth2) GetProfileDetails(accessToken string) (string, string, string, string, string, error) {
+func (o oAuth2) GetProfileDetails(accessToken string) (ProfileDetails, error) {
 	profileURL := fmt.Sprintf(profileDetailsURL, accessToken)
 	bytes, err := o.a.Get(profileURL)
 	if err != nil {
-		return "", "", "", "", "", err
+		return ProfileDetails{}, err
 	}
 
-	email := gjson.GetBytes(bytes, "emails.0.value")
-	name := gjson.GetBytes(bytes, "displayName")
-	image := gjson.GetBytes(bytes, "image.url")
-	ID := gjson.GetBytes(bytes, "id")
-	gender := gjson.GetBytes(bytes, "gender")
+	// Check for errors
+	errorMessage := gjson.GetBytes(bytes, "error.message").String()
+	if errorMessage != "" {
+		return ProfileDetails{}, errors.New(errorMessage)
+	}
 
-	return email.String(), name.String(), image.String(), ID.String(), gender.String(), nil
-
+	return ProfileDetails{
+		Email:  gjson.GetBytes(bytes, "emails.0.value").String(),
+		Name:   gjson.GetBytes(bytes, "displayName").String(),
+		Image:  gjson.GetBytes(bytes, "image.url").String(),
+		ID:     gjson.GetBytes(bytes, "id").String(),
+		Gender: gjson.GetBytes(bytes, "gender").String(),
+	}, nil
 }
 
-func (o oAuth2) GetAndVerifyToken(code string) (bool, string, string, string, string, string, string, error) {
+func (o oAuth2) GetAndVerifyToken(code string) (VerifyDetails, error) {
 	bytes, err := o.GetToken(code)
 	if err != nil {
-		return false, "", "", "", "", "", "", err
+		return VerifyDetails{}, err
 	}
 
 	accessToken := gjson.GetBytes(bytes, "access_token")
-	tokenType := gjson.GetBytes(bytes, "token_type")
-	expiresIn := gjson.GetBytes(bytes, "expires_in")
-	refreshToken := gjson.GetBytes(bytes, "refresh_token")
-	idToken := gjson.GetBytes(bytes, "id_token")
-
 	userID, err := o.VerifyToken(accessToken.String())
 	if err != nil {
-		return false, "", "", "", "", "", "", err
+		return VerifyDetails{}, err
 	}
 
-	return true, accessToken.String(), tokenType.String(), expiresIn.String(), refreshToken.String(), idToken.String(), userID, err
+	return VerifyDetails{
+		AccessToken:  accessToken.String(),
+		TokenType:    gjson.GetBytes(bytes, "token_type").String(),
+		ExpiresIn:    gjson.GetBytes(bytes, "expires_in").Int(),
+		RefreshToken: gjson.GetBytes(bytes, "refresh_token").String(),
+		IDToken:      gjson.GetBytes(bytes, "id_token").String(),
+		UserID:       userID,
+	}, nil
 }
